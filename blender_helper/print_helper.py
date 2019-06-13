@@ -40,15 +40,24 @@ def b_string(obj):
         return None
 
 
-def vert_print(v):
-    return f'<Vert #{v.index} {co_string(v.co)}>'
+def vert_print(v, print_co=False):
+    if print_co:
+        return f'<Vert #{v.index} {co_string(v.co)}>'
+    else:
+        return f'<Vert #{v.index}>'
 
 
-def edge_print(e):
-    string1 = f'<Edge #{e.verts[0].index} => #{e.verts[1].index}'
+def edge_print(e, print_co=False, print_v_index=False):
+    if print_v_index:
+        string1 = f'<Edge #{e.verts[0].index} => #{e.verts[1].index}'
+    else:
+        string1 = f'<Edge #{e.index}'
     string2 = f'{co_string(e.verts[0].co)} => {co_string(e.verts[1].co)}>'
 
-    return string1 + ' | ' + string2
+    if print_co:
+        return string1 + ' | ' + string2
+    else:
+        return string1 + '>'
 
 
 def face_print(f):
@@ -59,9 +68,8 @@ def seq_string(obj):
     print_string = '['
     for index, list_item in enumerate(obj):
         print_string += b_string(list_item)
-        if index != len(obj):
-            print_string += ', '
-    print_string += ']'
+        print_string += ', '
+    print_string = print_string[:-2] + ']'
     return print_string
 
 

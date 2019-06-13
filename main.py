@@ -8,13 +8,15 @@ if module_path not in sys.path:
 
 import blender_helper.collection_helper
 import blender_helper.print_helper
+import function_collection
 
 import importlib
 importlib.reload(blender_helper.collection_helper)
 importlib.reload(blender_helper.print_helper)
+importlib.reload(function_collection)
 
 
-import blender_helper.collection_helper as collection_helper
+from blender_helper.collection_helper import ConnectionMesh
 import blender_helper.print_helper as print_helper
 
 if __name__ == "__main__":
@@ -23,9 +25,15 @@ if __name__ == "__main__":
 
     obj = bpy.context.active_object
     bm = bmesh.from_edit_mesh(obj.data)
+    mesh = ConnectionMesh(bm)
 
-    vertex_edge_link = collection_helper.get_vertex_edge_link(bm)
+    pair_list = function_collection.get_edge_face_pairs(mesh)
+    print_helper.pretty_print(pair_list)
+    print()
+    pair_list = function_collection.sort_pair_list(pair_list)
 
-    print(print_helper.pretty_print(vertex_edge_link))
+    n_vertices = function_collection
+
+    print(print_helper.pretty_print(pair_list))
 
     print("============== End script ====================")
