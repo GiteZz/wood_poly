@@ -1,7 +1,8 @@
 import bmesh
+import bpy
 from collections import defaultdict
 
-BM_Seq = [bmesh.types.BMEdgeSeq, bmesh.types.BMVertSeq, bmesh.types.BMFaceSeq, list]
+BM_Seq = [bmesh.types.BMEdgeSeq, bmesh.types.BMVertSeq, bmesh.types.BMFaceSeq, list, bpy.types.bpy_prop_collection]
 BM_Elem = [bmesh.types.BMVert, bmesh.types.BMEdge, bmesh.types.BMFace]
 
 
@@ -30,11 +31,11 @@ def dict_string(d):
 def b_string(obj):
     if type(obj) in BM_Seq:
         return seq_string(obj)
-    elif type(obj) == bmesh.types.BMVert:
+    elif type(obj) == bmesh.types.BMVert or type(obj) == bpy.types.MeshVertex:
         return vert_print(obj)
-    elif type(obj) == bmesh.types.BMEdge:
+    elif type(obj) == bmesh.types.BMEdge or type(obj) == bpy.types.MeshEdge:
         return edge_print(obj)
-    elif type(obj) == bmesh.types.BMFace:
+    elif type(obj) == bmesh.types.BMFace or type(obj) == bpy.types.MeshPolygon:
         return face_print(obj)
     else:
         return None

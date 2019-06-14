@@ -8,15 +8,17 @@ if module_path not in sys.path:
 
 import blender_helper.collection_helper
 import blender_helper.print_helper
+import blender_helper.vector_helper
 import function_collection
 
 import importlib
 importlib.reload(blender_helper.collection_helper)
 importlib.reload(blender_helper.print_helper)
+importlib.reload(blender_helper.vector_helper)
 importlib.reload(function_collection)
 
 
-from blender_helper.collection_helper import ConnectionMesh
+import blender_helper.collection_helper as collection_helper
 import blender_helper.print_helper as print_helper
 
 if __name__ == "__main__":
@@ -24,15 +26,25 @@ if __name__ == "__main__":
     print("============== Starting script ====================")
 
     obj = bpy.context.active_object
-    bm = bmesh.from_edit_mesh(obj.data)
-    mesh = ConnectionMesh(bm)
+    scene = bpy.context.scene
+    or_bmesh = bmesh.new()
+    or_bmesh.from_mesh(obj.data)
+    or_colmesh = collection_helper.ConnectionMesh(or_bmesh)
 
-    pair_list = function_collection.get_edge_face_pairs(mesh)
-    print_helper.pretty_print(pair_list)
-    print()
+    pair_list = function_collection.get_edge_face_pairs(or_colmesh)
     pair_list = function_collection.sort_pair_list(pair_list)
 
-    n_vertices = function_collection
+    hat_dict = function_collection.create_hat(pair_list)
+
+
+
+    for vert, bm in hat_dict.items():
+        name = "hat_" + str(vert.index)
+        mesh = bpy.data.meshes.new("mesh")
+        obj = bpy.data.objects.new(name, mesh)
+        scene.objects.link(obj)
+        bm.to_mesh(mesh)
+        bm.free()
 
     print(print_helper.pretty_print(pair_list))
 
