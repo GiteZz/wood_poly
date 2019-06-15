@@ -132,28 +132,66 @@ def create_hat(pair_dict, distance=0.5):
 
         wc = WoodConnector(bm, new_middle, new_vertices)
         wc.set_top_faces(new_faces)
+        wc.set_closed_pair(closed_pairs)
         bmesh_dict[vert] = wc
 
     return bmesh_dict
 
 
-def create_thickness(hat_dict):
+def create_thickness(hat_dict, col_mesh):
     print("Creating thickness")
-    for vert, wood_con in hat_dict.items():
-        av_normal = mathutils.Vector((0.0, 0.0, 0.0))
-        for face in wood_con.top_faces:
+    for dict_vert, wood_con in hat_dict.items():
+        av_normal = -1 * col_mesh.vertex_normal[dict_vert]
 
-            nor_dir = lin_alg_helper.get_norm_from_face(face)
-            if nor_dir.dot((wood_con.middle_vert.co - face.verts[0].co)) < 0:
-                nor_dir *= -1
-            print("normal: " + pretty_string(nor_dir))
-            av_normal += nor_dir
-        av_normal /= len(wood_con.top_faces)
-        pretty_print(av_normal)
+        d = -1 * (av_normal * dict_vert.co)
+        plane = (av_normal[0], av_normal[1], av_normal[2], d)
 
-        for vert in wood_con.top_rim:
-            n_vert = wood_con.mesh.verts.new(vert.co + 0.1*av_normal)
-            wood_con.mesh.edges.new((n_vert, vert))
+        max_dist = 0
+        max_vert = None
+        for rim_vert in wood_con.top_rim:
+            dist = lin_alg_helper.dist_point_plane(plane, rim_vert.co)
+            if dist > max_dist:
+                max_dist = dist
+                max_vert = rim_vert
+
+        dn = -1 * (av_normal * max_vert.co)
+        f_plane = (av_normal[0], av_normal[1], av_normal[2], dn)
+        new_vertices = []
+        for rim_vert in wood_con.top_rim:
+            dist = lin_alg_helper.dist_point_plane(f_plane, rim_vert.co) + 0.05
+            v = wood_con.mesh.verts.new((rim_vert.co + dist * av_normal))
+            new_vertices.append(v)
+
+        middle_extended = None
+        if not wood_con.is_closed:
+            dist = lin_alg_helper.dist_point_plane(f_plane, wood_con.middle_vert.co) + 0.05
+            middle_extended = wood_con.mesh.verts.new((wood_con.middle_vert.co + dist * av_normal))
+            wood_con.mesh.edges.new((middle_extended, wood_con.middle_vert))
+
+        for i in range(len(new_vertices) - 1):
+            v1_b = new_vertices[i]
+            v2_b = new_vertices[i + 1]
+
+            v1_t = wood_con.top_rim[i]
+            v2_t = wood_con.top_rim[i + 1]
+
+            wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
+
+        vs_b = new_vertices[0]
+        ve_b = new_vertices[-1]
+
+        vs_t = wood_con.top_rim[0]
+        ve_t = wood_con.top_rim[-1]
+        if wood_con.is_closed:
+            wood_con.mesh.faces.new((vs_t, vs_b, ve_b, ve_t))
+            wood_con.mesh.faces.new(new_vertices)
+        else:
+            wood_con.mesh.faces.new((vs_t, vs_b, middle_extended, wood_con.middle_vert))
+            wood_con.mesh.faces.new((wood_con.middle_vert, middle_extended, ve_b, ve_t))
+            wood_con.mesh.faces.new(new_vertices + [middle_extended])
+
+
+
     print("end with thickness")
 
 

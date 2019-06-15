@@ -37,7 +37,7 @@ if __name__ == "__main__":
     pair_list = function_collection.sort_pair_list(pair_list)
 
     hat_dict = function_collection.create_hat(pair_list)
-    function_collection.create_thickness(hat_dict)
+    function_collection.create_thickness(hat_dict, or_colmesh)
 
 
     for vert, bm in hat_dict.items():

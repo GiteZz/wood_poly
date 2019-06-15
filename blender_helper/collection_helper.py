@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+import mathutils
 
 class ConnectionMesh:
     """
@@ -18,7 +18,7 @@ class ConnectionMesh:
         self.vertex_edge = get_vertex_edge_link(mesh)
         self.vertex_face = get_vertex_face_link(mesh)
         self.edge_face = get_edge_face_link(mesh)
-
+        self.vertex_normal = get_vertex_normal(self)
 
 class WoodConnector:
     """
@@ -31,12 +31,16 @@ class WoodConnector:
         self.top_rim = top_rim
         self.top_faces = None
         self.pairs = None
+        self.is_closed = None
 
     def set_top_faces(self, faces):
         self.top_faces = faces
 
     def set_pairs(self, pairs):
         self.pairs = pairs
+
+    def set_closed_pair(self, bool):
+        self.is_closed = bool
 
 
 def get_vertex_edge_link(mesh):
@@ -85,3 +89,20 @@ def get_vertex_face_link(mesh):
             link_dict[vert].append(face)
 
     return link_dict
+
+
+def get_vertex_normal(mesh):
+    """
+
+    :param mesh: ConnetionMesh
+    :return: dict[v1] = Vector((n1, n2, n3))
+    """
+    normal_dict = {}
+    for vert, faces in mesh.vertex_face.items():
+        av_normal = mathutils.Vector((0.0, 0.0, 0.0))
+        for face in faces:
+            av_normal += face.normal
+        av_normal /= len(faces)
+        normal_dict[vert] = av_normal
+
+    return normal_dict
