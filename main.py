@@ -9,12 +9,14 @@ if module_path not in sys.path:
 import blender_helper.collection_helper
 import blender_helper.print_helper
 import blender_helper.vector_helper
+import blender_helper.lin_alg_helper
 import function_collection
 
 import importlib
 importlib.reload(blender_helper.collection_helper)
 importlib.reload(blender_helper.print_helper)
 importlib.reload(blender_helper.vector_helper)
+importlib.reload(blender_helper.lin_alg_helper)
 importlib.reload(function_collection)
 
 
@@ -35,16 +37,17 @@ if __name__ == "__main__":
     pair_list = function_collection.sort_pair_list(pair_list)
 
     hat_dict = function_collection.create_hat(pair_list)
-
+    function_collection.create_thickness(hat_dict)
 
 
     for vert, bm in hat_dict.items():
+        bm_mesh = bm.mesh
         name = "hat_" + str(vert.index)
         mesh = bpy.data.meshes.new("mesh")
         obj = bpy.data.objects.new(name, mesh)
         scene.objects.link(obj)
-        bm.to_mesh(mesh)
-        bm.free()
+        bm_mesh.to_mesh(mesh)
+        bm_mesh.free()
 
     print(print_helper.pretty_print(pair_list))
 

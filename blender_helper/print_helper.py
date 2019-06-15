@@ -1,9 +1,10 @@
 import bmesh
 import bpy
 from collections import defaultdict
+import mathutils
 
 BM_Seq = [bmesh.types.BMEdgeSeq, bmesh.types.BMVertSeq, bmesh.types.BMFaceSeq, list, bpy.types.bpy_prop_collection]
-BM_Elem = [bmesh.types.BMVert, bmesh.types.BMEdge, bmesh.types.BMFace]
+BM_Elem = [bmesh.types.BMVert, bmesh.types.BMEdge, bmesh.types.BMFace, mathutils.Vector]
 
 
 def pretty_print(obj):
@@ -37,6 +38,8 @@ def b_string(obj):
         return edge_print(obj)
     elif type(obj) == bmesh.types.BMFace or type(obj) == bpy.types.MeshPolygon:
         return face_print(obj)
+    elif type(obj) == mathutils.Vector:
+        return vector_print(obj)
     else:
         return None
 
@@ -63,6 +66,11 @@ def edge_print(e, print_co=False, print_v_index=False):
 
 def face_print(f):
     return '<Face>'
+
+
+def vector_print(v):
+    print("vector")
+    return f'<Vector ({float_string(v[0])}, {float_string(v[1])}, {float_string(v[2])})>'
 
 
 def seq_string(obj):

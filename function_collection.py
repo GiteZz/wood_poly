@@ -1,6 +1,8 @@
 import blender_helper.collection_helper as collection_helper
+from blender_helper.collection_helper import WoodConnector
 from blender_helper.print_helper import pretty_print, pretty_string
 import blender_helper.vector_helper as vector_helper
+import blender_helper.lin_alg_helper as lin_alg_helper
 from collections import defaultdict
 import bmesh
 import mathutils
@@ -93,7 +95,7 @@ def create_hat(pair_dict, distance=0.5):
     """
 
     :param pair_dict: dict[vertex] = [[e1, e2], [e2, e3], ...] -> should be sorted
-    :return: dict[vertex] = bmesh
+    :return: dict[vertex] = WoodConnector
     """
     bmesh_dict = {}
 
@@ -103,34 +105,56 @@ def create_hat(pair_dict, distance=0.5):
         closed_pairs = pairs[0][0] == pairs[-1][1]
 
         new_vertices = []
+        new_faces = []
+        new_edges = []
         for pair in pairs:
             dir_edge1 = vector_helper.get_dir_edge(pair[0], starting_vert=vert)
             dir_edge2 = vector_helper.get_dir_edge(pair[1], starting_vert=vert)
-            new_vertices.append(bm.verts.new(vert.co + distance * dir_edge1))
+            edge_vert = bm.verts.new(vert.co + distance * dir_edge1)
+            new_vertices.append(edge_vert)
+            new_edges.append(bm.edges.new((new_middle, edge_vert)))
 
             dir_middle = ((dir_edge1 + dir_edge2) / 2).normalized()
             new_vertices.append(bm.verts.new(vert.co + distance * dir_middle))
 
         if not closed_pairs:
             dir_edge = vector_helper.get_dir_edge(pairs[-1][1], starting_vert=vert)
-            new_vertices.append(bm.verts.new(vert.co + distance * dir_edge))
+            edge_vert = bm.verts.new(vert.co + distance * dir_edge)
+            new_vertices.append(edge_vert)
+            new_edges.append(bm.edges.new((new_middle, edge_vert)))
 
         # add the faces to the hat vertices 0,1,2 and the middle should form a quad, then 2,3,4 and the middle
         for i in range(0, len(new_vertices) - 2, 2):
-            bm.faces.new((new_vertices[i+0], new_vertices[i+1], new_vertices[i+2], new_middle))
+            new_faces.append(bm.faces.new((new_vertices[i+0], new_vertices[i+1], new_vertices[i+2], new_middle)))
 
         if closed_pairs:
-            bm.faces.new((new_vertices[-2], new_vertices[-1], new_vertices[0], new_middle))
+            new_faces.append(bm.faces.new((new_vertices[-2], new_vertices[-1], new_vertices[0], new_middle)))
 
-        bmesh_dict[vert] = bm
+        wc = WoodConnector(bm, new_middle, new_vertices)
+        wc.set_top_faces(new_faces)
+        bmesh_dict[vert] = wc
 
     return bmesh_dict
 
+
 def create_thickness(hat_dict):
-    for vert, mesh in hat_dict:
+    print("Creating thickness")
+    for vert, wood_con in hat_dict.items():
         av_normal = mathutils.Vector((0.0, 0.0, 0.0))
-        for face in mesh.faces:
-            av_normal += face.normal.normalized()
-        av_normal /= len(mesh.faces)
+        for face in wood_con.top_faces:
+
+            nor_dir = lin_alg_helper.get_norm_from_face(face)
+            if nor_dir.dot((wood_con.middle_vert.co - face.verts[0].co)) < 0:
+                nor_dir *= -1
+            print("normal: " + pretty_string(nor_dir))
+            av_normal += nor_dir
+        av_normal /= len(wood_con.top_faces)
+        pretty_print(av_normal)
+
+        for vert in wood_con.top_rim:
+            n_vert = wood_con.mesh.verts.new(vert.co + 0.1*av_normal)
+            wood_con.mesh.edges.new((n_vert, vert))
+    print("end with thickness")
+
 
 
