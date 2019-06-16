@@ -34,7 +34,7 @@ class WoodConnector:
         self.top_faces = None
         self.pairs = None
         self.is_closed = None
-        self.underside_face = None
+        self.bottom_plane = None
 
     def set_pairs(self, pairs):
         self.pairs = pairs
@@ -47,6 +47,9 @@ class WoodConnector:
 
     def set_extended_middle(self, vert):
         self.extended_middle = vert
+
+    def set_bottom_plane(self, plane):
+        self.bottom_plane = plane
 
     def get_top_verts_pairs(self):
         """
