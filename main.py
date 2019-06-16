@@ -38,6 +38,7 @@ if __name__ == "__main__":
 
     hat_dict = function_collection.create_hat(pair_list)
     function_collection.create_thickness(hat_dict, or_colmesh)
+    function_collection.add_holes(hat_dict, or_colmesh)
 
 
     for vert, bm in hat_dict.items():

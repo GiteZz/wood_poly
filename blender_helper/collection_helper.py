@@ -56,8 +56,12 @@ class WoodConnector:
         :return:
         """
         pair_verts = []
-        for i in range(len(pair_verts)):
+        for i in range(len(self.pairs)):
             pair_verts.append(self.top_rim_verts[i*2 + 0: i*2 + 3])
+
+        if self.is_closed:
+            pair_verts[-1].append(self.top_rim_verts[0])
+
         return pair_verts
 
 

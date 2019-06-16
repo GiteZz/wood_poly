@@ -6,6 +6,7 @@ import blender_helper.lin_alg_helper as lin_alg_helper
 from collections import defaultdict
 import bmesh
 import mathutils
+import math
 
 def intersection(lst1, lst2):
     return list(set(lst1) & set(lst2))
@@ -125,7 +126,7 @@ def create_hat(pair_dict, distance=0.5):
             new_vertices.append(edge_vert)
 
         wc = WoodConnector(bm, new_middle, new_vertices)
-        wc.set_top_faces(new_faces)
+        wc.set_pairs(pairs)
         wc.set_closed_pair(closed_pairs)
         bmesh_dict[vert] = wc
 
@@ -149,7 +150,7 @@ def create_thickness(hat_dict, col_mesh):
         # Find the point that is furthest from the middle point according to the normal vector
         max_dist = 0
         max_vert = None
-        for rim_vert in wood_con.top_rim:
+        for rim_vert in wood_con.top_rim_verts:
             dist = lin_alg_helper.dist_point_plane(plane, rim_vert.co)
             if dist > max_dist:
                 max_dist = dist
@@ -159,7 +160,7 @@ def create_thickness(hat_dict, col_mesh):
         dn = -1 * (av_normal * max_vert.co)
         f_plane = (av_normal[0], av_normal[1], av_normal[2], dn)
         new_vertices = []
-        for rim_vert in wood_con.top_rim:
+        for rim_vert in wood_con.top_rim_verts:
             dist = lin_alg_helper.dist_point_plane(f_plane, rim_vert.co) + 0.05
             v = wood_con.mesh.verts.new((rim_vert.co + dist * av_normal))
             new_vertices.append(v)
@@ -177,16 +178,16 @@ def create_thickness(hat_dict, col_mesh):
             v1_b = new_vertices[i]
             v2_b = new_vertices[i + 1]
 
-            v1_t = wood_con.top_rim[i]
-            v2_t = wood_con.top_rim[i + 1]
+            v1_t = wood_con.top_rim_verts[i]
+            v2_t = wood_con.top_rim_verts[i + 1]
 
             wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
 
         vs_b = new_vertices[0]
         ve_b = new_vertices[-1]
 
-        vs_t = wood_con.top_rim[0]
-        ve_t = wood_con.top_rim[-1]
+        vs_t = wood_con.top_rim_verts[0]
+        ve_t = wood_con.top_rim_verts[-1]
         if wood_con.is_closed:
             wood_con.mesh.faces.new((vs_t, vs_b, ve_b, ve_t))
             wood_con.mesh.faces.new(new_vertices)
@@ -196,6 +197,32 @@ def create_thickness(hat_dict, col_mesh):
             wood_con.mesh.faces.new(new_vertices + [middle_extended])
 
     print("end with thickness")
+
+
+def add_holes(wood_con_dict, col_mesh):
+    for dict_vert, wood_con in wood_con_dict.items():
+        pretty_print(wood_con.get_top_verts_pairs())
+        for pair_verts in wood_con.get_top_verts_pairs():
+            z_new  = -1 * col_mesh.vertex_normal[dict_vert]
+            x_new = (pair_verts[0].co - pair_verts[2].co).normalized()
+            y_new = (pair_verts[1].co - wood_con.middle_vert.co).normalized()
+
+            rot_matrix = mathutils.Matrix((x_new, y_new, z_new)).transposed()
+            co_middle = (pair_verts[1].co + wood_con.middle_vert.co) / 2
+
+            circle_vertices = 12
+            angle = (2 * math.pi) / circle_vertices
+            radius = 0.1
+
+            new_vertices = []
+            for i in range(circle_vertices):
+                p = mathutils.Vector((math.cos(i * angle), math.sin(i * angle), 0)) * radius
+                n_p = rot_matrix * p + co_middle
+                new_vertices.append(wood_con.mesh.verts.new(n_p))
+
+            for i in range(circle_vertices):
+                wood_con.mesh.edges.new((new_vertices[i], new_vertices[(i+1)%circle_vertices]))
+
 
 
 
