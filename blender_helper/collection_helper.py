@@ -28,19 +28,37 @@ class WoodConnector:
     def __init__(self, mesh, middle_vert, top_rim):
         self.mesh = mesh
         self.middle_vert = middle_vert
-        self.top_rim = top_rim
+        self.extended_middle = None
+        self.top_rim_verts = top_rim
+        self.bottom_rim_verts = None
         self.top_faces = None
         self.pairs = None
         self.is_closed = None
-
-    def set_top_faces(self, faces):
-        self.top_faces = faces
+        self.underside_face = None
 
     def set_pairs(self, pairs):
         self.pairs = pairs
 
     def set_closed_pair(self, bool):
         self.is_closed = bool
+
+    def set_bottom_rim_verts(self, verts):
+        self.bottom_rim_verts = verts
+
+    def set_extended_middle(self, vert):
+        self.extended_middle = vert
+
+    def get_top_verts_pairs(self):
+        """
+        As constructed in create_hat the top_rim_vertices should be ordered like
+        [edge_vert, pair_vert, edge_vert, pair_verts, edge_vert]
+        This function will give the vertices for each pair ([edge_vert, pair_vert, edge_vert])
+        :return:
+        """
+        pair_verts = []
+        for i in range(len(pair_verts)):
+            pair_verts.append(self.top_rim_verts[i*2 + 0: i*2 + 3])
+        return pair_verts
 
 
 def get_vertex_edge_link(mesh):
