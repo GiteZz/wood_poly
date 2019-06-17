@@ -36,8 +36,11 @@ class WoodConnector:
         self.pairs = pairs
         self.is_closed = None
         self.bottom_plane = None
-        self.top_hole_verts = None
-        self.bottom_hole_verts = None
+
+        self.top_bolt_verts = None
+        self.bottom_bolt_verts = None
+        self.top_nut_verts = None
+        self.bottom_nut_verts = None
 
     def set_pairs(self, pairs):
         self.pairs = pairs
@@ -83,10 +86,14 @@ class WoodConnector:
 
         return pair_verts
 
+    def set_bolt_verts(self, top, bottom):
+        self.top_bolt_verts = top
+        self.bottom_bolt_verts = bottom
 
-    def set_hole_verts(self, top, bottom):
-        self.top_hole_verts = top
-        self.bottom_hole_verts = bottom
+    def set_nut_verts(self, top, bottom):
+        self.top_nut_verts = top
+        self.bottom_nut_verts = bottom
+
 
 
 

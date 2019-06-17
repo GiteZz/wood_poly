@@ -189,8 +189,10 @@ def create_thickness(wood_con, thickness=10):
 
 def add_holes(wood_con, hole_radius=1.5, nut_radius=3, bolt_dist=4, location=5, bolt_thickness=2.5):
 
-    top_pair_vertices = []
-    bottom_pair_vertices = []
+    top_pair_bolt_vertices = []
+    bottom_pair_bolt_vertices = []
+    top_pair_nut_vertices = []
+    bottom_pair_nut_vertices = []
     for pair_verts in wood_con.get_top_verts_pairs():
         # z_new = -1 * col_mesh.vertex_normal[dict_vert]
         y_new = (pair_verts[2].co - pair_verts[0].co).normalized()
@@ -201,54 +203,85 @@ def add_holes(wood_con, hole_radius=1.5, nut_radius=3, bolt_dist=4, location=5, 
         rot_matrix = mathutils.Matrix((x_new, y_new, z_new)).transposed()
         co_middle = pair_verts[1].co + x_new * location
         circle_vertices = 12
-        angle = (2 * math.pi) / circle_vertices
+        bolt_angle = (2 * math.pi) / circle_vertices
 
-        top_vertices = []
-        bottom_vertices = []
+        top_bolt_vertices = []
+        bottom_bolt_vertices = []
+        top_nut_vertices = []
+        bottom_nut_vertices = []
         b_plane = wood_con.bottom_plane
 
         # Calculate bolt distance
-        # p = mathutils.Vector((-nut_radius, 0, 0))
-        # meas_vert = rot_matrix * p + co_middle
+        p = mathutils.Vector((-nut_radius, 0, 0))
+        meas_vert = rot_matrix * p + co_middle
+        circle_dist = lin_alg_helper.point_to_plane_via_dir(meas_vert, z_new, b_plane)
+        if circle_dist < 0:
+            circle_dist += bolt_thickness + 1
+        else:
+            circle_dist -= bolt_thickness + 1
+        print("circle: " + str(circle_dist))
 
-
-        min_dist = None
+        # create pipe for bolt
         for i in range(circle_vertices):
-            p = mathutils.Vector((math.cos(i * angle), math.sin(i * angle), 0)) * hole_radius
+            p = mathutils.Vector((math.cos(i * bolt_angle), math.sin(i * bolt_angle), 0)) * hole_radius
+
             vert_top = rot_matrix * p + co_middle
-            top_vertices.append(wood_con.mesh.verts.new(vert_top))
+            top_bolt_vertices.append(wood_con.mesh.verts.new(vert_top))
 
-            dist = lin_alg_helper.point_to_plane_via_dir(vert_top, z_new, b_plane)
+            vert_middle = vert_top + circle_dist * z_new
+            bottom_bolt_vertices.append(wood_con.mesh.verts.new(vert_middle))
 
-            if min_dist is None:
-                min_dist = dist
-            else:
-                if dist < min_dist:
-                    min_dist = dist
-
-        for i in range(6):
-            p = mathutils.Vector((math.cos(i * angle), math.sin(i * angle), 0)) * hole_radius
-
-            vert_bottom = vert_top + dist*z_new
-            bottom_vertices.append(wood_con.mesh.verts.new(vert_bottom))
-
+        # Fill holes for the boltpipe
         for i in range(circle_vertices):
-            v1_t = top_vertices[i]
-            v1_b = bottom_vertices[i]
-            v2_t = top_vertices[(i + 1) % circle_vertices]
-            v2_b = bottom_vertices[(i + 1) % circle_vertices]
+            v1_t = top_bolt_vertices[i]
+            v1_b = bottom_bolt_vertices[i]
+            v2_t = top_bolt_vertices[(i + 1) % circle_vertices]
+            v2_b = bottom_bolt_vertices[(i + 1) % circle_vertices]
             wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
 
-        top_pair_vertices.append(top_vertices)
-        bottom_pair_vertices.append(bottom_vertices)
+        nut_angle = (2 * math.pi) / 6
+        # create pipe for nut
+        for i in range(6):
+            p = mathutils.Vector((math.cos(i * nut_angle), math.sin(i * nut_angle), 0)) * nut_radius
 
-    wood_con.set_hole_verts(top_pair_vertices, bottom_pair_vertices)
+            vert_top = rot_matrix * p + co_middle + circle_dist * z_new
+            top_nut_vertices.append(wood_con.mesh.verts.new(vert_top))
+
+            dist = lin_alg_helper.point_to_plane_via_dir(vert_top, z_new, b_plane)
+            vert_bottom = vert_top + dist * z_new
+            bottom_nut_vertices.append(wood_con.mesh.verts.new(vert_bottom))
+
+        # Fill holes for nutpip
+        for i in range(6):
+            v1_t = top_nut_vertices[i]
+            v1_b = bottom_nut_vertices[i]
+            v2_t = top_nut_vertices[(i + 1) % 6]
+            v2_b = bottom_nut_vertices[(i + 1) % 6]
+            wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
+
+        circle_amount_half = len(bottom_bolt_vertices) // 2
+        first_half_bolt = bottom_bolt_vertices[0:circle_amount_half + 1]
+        second_half_bolt = bottom_bolt_vertices[circle_amount_half:] + [bottom_bolt_vertices[0]]
+
+        first_half_bolt.extend([top_nut_vertices[3], top_nut_vertices[2], top_nut_vertices[1], top_nut_vertices[0]])
+        second_half_bolt.extend([top_nut_vertices[0], top_nut_vertices[5], top_nut_vertices[4], top_nut_vertices[3]])
+
+        wood_con.mesh.faces.new(first_half_bolt)
+        wood_con.mesh.faces.new(second_half_bolt)
+
+        top_pair_bolt_vertices.append(top_bolt_vertices)
+        bottom_pair_bolt_vertices.append(bottom_bolt_vertices)
+        top_pair_nut_vertices.append(top_nut_vertices)
+        bottom_pair_nut_vertices.append(bottom_nut_vertices)
+
+    wood_con.set_bolt_verts(top_pair_bolt_vertices, bottom_pair_bolt_vertices)
+    wood_con.set_nut_verts(top_pair_nut_vertices, bottom_pair_nut_vertices)
 
 
 def fill_hole_faces(w_con):
     for i in range(len(w_con.pairs)):
-        fill_single_hole(w_con.get_top_verts_pairs()[i], w_con.top_hole_verts[i], w_con.middle_vert, w_con.mesh)
-        fill_single_hole(w_con.get_bottom_verts_pairs()[i], w_con.bottom_hole_verts[i], w_con.extended_middle, w_con.mesh)
+        fill_single_hole(w_con.get_top_verts_pairs()[i], w_con.top_bolt_verts[i], w_con.middle_vert, w_con.mesh)
+        fill_single_hole(w_con.get_bottom_verts_pairs()[i], w_con.bottom_nut_verts[i], w_con.extended_middle, w_con.mesh)
 
 
 def fill_single_hole(pair_verts, hole_verts, middle_vert, mesh):
