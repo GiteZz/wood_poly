@@ -44,7 +44,7 @@ def b_string(obj):
         return None
 
 
-def vert_print(v, print_co=False):
+def vert_print(v, print_co=True):
     if print_co:
         return f'<Vert #{v.index} {co_string(v.co)}>'
     else:
@@ -87,4 +87,4 @@ def co_string(co):
 
 
 def float_string(number):
-    return "%.1f" % number
+    return "%.2f" % number

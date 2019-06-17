@@ -35,6 +35,8 @@ class WoodConnector:
         self.pairs = None
         self.is_closed = None
         self.bottom_plane = None
+        self.top_hole_verts = None
+        self.bottom_hole_verts = None
 
     def set_pairs(self, pairs):
         self.pairs = pairs
@@ -58,14 +60,30 @@ class WoodConnector:
         This function will give the vertices for each pair ([edge_vert, pair_vert, edge_vert])
         :return:
         """
+        if self.top_rim_verts is None:
+            print("WARNING top_rim_verts is None")
+        return self.split_pairs(self.top_rim_verts)
+
+    def get_bottom_verts_pairs(self):
+        if self.bottom_rim_verts is None:
+            print("WARNING bottom_rim_verts is None")
+        return self.split_pairs(self.bottom_rim_verts)
+
+    def split_pairs(self, rim_verts):
         pair_verts = []
         for i in range(len(self.pairs)):
-            pair_verts.append(self.top_rim_verts[i*2 + 0: i*2 + 3])
+            pair_verts.append(rim_verts[i * 2 + 0: i * 2 + 3])
 
         if self.is_closed:
-            pair_verts[-1].append(self.top_rim_verts[0])
+            pair_verts[-1].append(rim_verts[0])
 
         return pair_verts
+
+
+    def set_hole_verts(self, top, bottom):
+        self.top_hole_verts = top
+        self.bottom_hole_verts = bottom
+
 
 
 def get_vertex_edge_link(mesh):

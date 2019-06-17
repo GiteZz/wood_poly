@@ -149,7 +149,7 @@ def create_thickness(hat_dict, col_mesh):
 
         # Find the point that is furthest from the middle point according to the normal vector
         max_dist = 0
-        max_vert = None
+        max_vert = wood_con.top_rim_verts[0]
         for rim_vert in wood_con.top_rim_verts:
             dist = lin_alg_helper.dist_point_plane(plane, rim_vert.co)
             if dist > max_dist:
@@ -165,13 +165,35 @@ def create_thickness(hat_dict, col_mesh):
             dist = lin_alg_helper.dist_point_plane(f_plane, rim_vert.co)
             v = wood_con.mesh.verts.new((rim_vert.co + dist * av_normal))
             new_vertices.append(v)
-        wood_con.set_bottom_rim_verts = new_vertices
+        wood_con.set_bottom_rim_verts(new_vertices)
 
         # if the pairs are not closed the middle vertex has to also be extended
         dist = lin_alg_helper.dist_point_plane(f_plane, wood_con.middle_vert.co)
         middle_extended = wood_con.mesh.verts.new((wood_con.middle_vert.co + dist * av_normal))
-        wood_con.mesh.edges.new((middle_extended, wood_con.middle_vert))
-        wood_con.set_extended_middle = middle_extended
+        wood_con.set_extended_middle(middle_extended)
+
+        if wood_con.is_closed:
+            wood_con.mesh.edges.new((middle_extended, wood_con.middle_vert))
+
+        for i in range(len(new_vertices) - 1):
+            v1_b = new_vertices[i]
+            v2_b = new_vertices[i + 1]
+
+            v1_t = wood_con.top_rim_verts[i]
+            v2_t = wood_con.top_rim_verts[i + 1]
+
+            wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
+
+        vs_b = new_vertices[0]
+        ve_b = new_vertices[-1]
+
+        vs_t = wood_con.top_rim_verts[0]
+        ve_t = wood_con.top_rim_verts[-1]
+        if wood_con.is_closed:
+            wood_con.mesh.faces.new((vs_t, vs_b, ve_b, ve_t))
+        else:
+            wood_con.mesh.faces.new((vs_t, vs_b, middle_extended, wood_con.middle_vert))
+            wood_con.mesh.faces.new((wood_con.middle_vert, middle_extended, ve_b, ve_t))
 
         wood_con.set_bottom_plane(f_plane)
 
@@ -180,11 +202,12 @@ def create_thickness(hat_dict, col_mesh):
 
 def add_holes(wood_con_dict):
     for dict_vert, wood_con in wood_con_dict.items():
-        pretty_print(wood_con.get_top_verts_pairs())
+        top_pair_vertices = []
+        bottom_pair_vertices = []
         for pair_verts in wood_con.get_top_verts_pairs():
             # z_new = -1 * col_mesh.vertex_normal[dict_vert]
-            x_new = (pair_verts[0].co - pair_verts[2].co).normalized()
-            y_new = (pair_verts[1].co - wood_con.middle_vert.co).normalized()
+            y_new = (pair_verts[2].co - pair_verts[0].co).normalized()
+            x_new = (wood_con.middle_vert.co - pair_verts[1].co).normalized()
             z_new = x_new.cross(y_new).normalized()
 
             # create the matrices to allow the verts to lay in the plane
@@ -193,7 +216,7 @@ def add_holes(wood_con_dict):
 
             circle_vertices = 12
             angle = (2 * math.pi) / circle_vertices
-            radius = 0.04
+            radius = 0.08
 
             top_vertices = []
             bottom_vertices = []
@@ -219,6 +242,33 @@ def add_holes(wood_con_dict):
                 v2_b = bottom_vertices[(i + 1) % circle_vertices]
                 wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
 
+            top_pair_vertices.append(top_vertices)
+            bottom_pair_vertices.append(bottom_vertices)
+
+        wood_con.set_hole_verts(top_pair_vertices, bottom_pair_vertices)
 
 
+def file_hole_faces(wood_con_dict):
+    for dict_vert, w_con in wood_con_dict.items():
+        for i in range(len(w_con.pairs)):
+            fill_single_hole(w_con.get_top_verts_pairs()[i], w_con.top_hole_verts[i], w_con.middle_vert, w_con.mesh)
+            fill_single_hole(w_con.get_bottom_verts_pairs()[i], w_con.bottom_hole_verts[i], w_con.extended_middle, w_con.mesh)
 
+
+def fill_single_hole(pair_verts, hole_verts, middle_vert, mesh):
+    # print(pair_verts)
+    # print(hole_verts)
+    # print(middle_vert)
+    # print(mesh)
+    circle_amount = 12
+    print("=========================================")
+    pretty_print(pair_verts)
+    pretty_print(hole_verts)
+    first_half = hole_verts[0:7]
+    second_half = hole_verts[6:] + [hole_verts[0]]
+    first_half.extend([pair_verts[1], pair_verts[2], middle_vert])
+    second_half.extend([middle_vert, pair_verts[0], pair_verts[1]])
+    print(first_half)
+    print(second_half)
+    mesh.faces.new(first_half)
+    mesh.faces.new(second_half)
