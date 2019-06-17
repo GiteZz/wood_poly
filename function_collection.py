@@ -260,12 +260,12 @@ def fill_single_hole(pair_verts, hole_verts, middle_vert, mesh):
     # print(hole_verts)
     # print(middle_vert)
     # print(mesh)
-    circle_amount = 12
+    circle_amount_half = len(hole_verts) // 2
     print("=========================================")
     pretty_print(pair_verts)
     pretty_print(hole_verts)
-    first_half = hole_verts[0:7]
-    second_half = hole_verts[6:] + [hole_verts[0]]
+    first_half = hole_verts[0:circle_amount_half + 1]
+    second_half = hole_verts[circle_amount_half:] + [hole_verts[0]]
     first_half.extend([pair_verts[1], pair_verts[2], middle_vert])
     second_half.extend([middle_vert, pair_verts[0], pair_verts[1]])
     print(first_half)
