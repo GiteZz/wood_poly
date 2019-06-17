@@ -25,14 +25,15 @@ class WoodConnector:
     This class is used to contain the information about connection pieces
     :return:
     """
-    def __init__(self, mesh, middle_vert, top_rim):
+    def __init__(self, mesh, middle_vert, av_normal, pairs):
+        self.av_normal = av_normal
         self.mesh = mesh
         self.middle_vert = middle_vert
         self.extended_middle = None
-        self.top_rim_verts = top_rim
+        self.top_rim_verts = None
         self.bottom_rim_verts = None
         self.top_faces = None
-        self.pairs = None
+        self.pairs = pairs
         self.is_closed = None
         self.bottom_plane = None
         self.top_hole_verts = None
@@ -43,6 +44,9 @@ class WoodConnector:
 
     def set_closed_pair(self, bool):
         self.is_closed = bool
+
+    def set_top_rim_verts(self, verts):
+        self.top_rim_verts = verts
 
     def set_bottom_rim_verts(self, verts):
         self.bottom_rim_verts = verts

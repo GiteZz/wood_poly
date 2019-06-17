@@ -33,24 +33,29 @@ if __name__ == "__main__":
     or_bmesh.from_mesh(obj.data)
     or_colmesh = collection_helper.ConnectionMesh(or_bmesh)
 
-    pair_list = function_collection.get_edge_face_pairs(or_colmesh)
-    pair_list = function_collection.sort_pair_list(pair_list)
+    pair_dict = function_collection.get_edge_face_pairs(or_colmesh)
+    pair_dict = function_collection.sort_pair_list(pair_dict)
 
-    hat_dict = function_collection.create_hat(pair_list)
-    function_collection.create_thickness(hat_dict, or_colmesh)
-    function_collection.add_holes(hat_dict)
-    function_collection.file_hole_faces(hat_dict)
+    for vert, pairs in pair_dict.items():
+        bm = bmesh.new()
+        new_middle = bm.verts.new(vert.co)
+        print_helper.pretty_print(new_middle)
+        closed_pairs = pairs[0][0] == pairs[-1][1]
+        av_normal = or_colmesh.vertex_normal[vert]
+        wood_con = blender_helper.collection_helper.WoodConnector(bm, new_middle, av_normal, pair_dict[vert])
 
+        function_collection.create_hat(wood_con)
+        function_collection.create_thickness(wood_con)
+        function_collection.add_holes(wood_con)
+        function_collection.fill_hole_faces(wood_con)
 
-    for vert, bm in hat_dict.items():
-        bm_mesh = bm.mesh
         name = "hat_" + str(vert.index)
         mesh = bpy.data.meshes.new("mesh")
         obj = bpy.data.objects.new(name, mesh)
         scene.objects.link(obj)
-        bm_mesh.to_mesh(mesh)
-        bm_mesh.free()
+        bm.to_mesh(mesh)
+        bm.free()
 
-    print(print_helper.pretty_print(pair_list))
+    print(print_helper.pretty_print(pair_dict))
 
     print("============== End script ====================")

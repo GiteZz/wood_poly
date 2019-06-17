@@ -22,3 +22,10 @@ def dist_point_plane(plane, point):
     bottom = math.sqrt(math.pow(plane[0], 2) + math.pow(plane[1], 2) + math.pow(plane[2], 2))
 
     return top/bottom
+
+
+def point_to_plane_via_dir(point, dir, plane):
+    frac_top = -1 * (plane[0] * point[0] + plane[1] * point[1] + plane[2] * point[2] + plane[3])
+    frac_bottom = plane[0] * dir[0] + plane[1] * dir[1] + plane[2] * dir[2]
+    dist = frac_top / frac_bottom
+    return dist

@@ -92,48 +92,36 @@ def sort_pair_list(pair_dict):
     return new_pair_dict
 
 
-def create_hat(pair_dict, distance=0.5):
+def create_hat(wood_con, distance=20):
     """
 
     :param pair_dict: dict[vertex] = [[e1, e2], [e2, e3], ...] -> should be sorted
     :return: dict[vertex] = WoodConnector
     """
-    bmesh_dict = {}
 
-    for vert, pairs in pair_dict.items():
-        bm = bmesh.new()
-        new_middle = bm.verts.new(vert.co)
-        closed_pairs = pairs[0][0] == pairs[-1][1]
+    # new_vertices should be ordered like [edge_vert, pair_vert, edge_vert, pair_verts, edge_vert]
+    # where edge_vert is a new vert place on top the old edges
+    # and pair_vert is a new vert placed between the two edges of a pair
+    # each trio of edge_vert, pair_vert, edge_vert should belong to a pair
+    new_vertices = []
+    for pair in wood_con.pairs:
+        dir_edge1 = vector_helper.get_dir_edge(pair[0], starting_vert=wood_con.middle_vert)
+        dir_edge2 = vector_helper.get_dir_edge(pair[1], starting_vert=wood_con.middle_vert)
 
-        # new_vertices should be ordered like [edge_vert, pair_vert, edge_vert, pair_verts, edge_vert]
-        # where edge_vert is a new vert place on top the old edges
-        # and pair_vert is a new vert placed between the two edges of a pair
-        # each trio of edge_vert, pair_vert, edge_vert should belong to a pair
-        new_vertices = []
-        new_faces = []
-        for pair in pairs:
-            dir_edge1 = vector_helper.get_dir_edge(pair[0], starting_vert=vert)
-            dir_edge2 = vector_helper.get_dir_edge(pair[1], starting_vert=vert)
-            edge_vert = bm.verts.new(vert.co + distance * dir_edge1)
-            new_vertices.append(edge_vert)
+        edge_vert = wood_con.mesh.verts.new(wood_con.middle_vert.co + distance * dir_edge1)
+        new_vertices.append(edge_vert)
+        dir_middle = ((dir_edge1 + dir_edge2) / 2).normalized()
+        new_vertices.append(wood_con.mesh.verts.new(wood_con.middle_vert.co + distance * dir_middle))
 
-            dir_middle = ((dir_edge1 + dir_edge2) / 2).normalized()
-            new_vertices.append(bm.verts.new(vert.co + distance * dir_middle))
+    if not wood_con.is_closed:
+        dir_edge = vector_helper.get_dir_edge(wood_con.pairs[-1][1], starting_vert=wood_con.middle_vert)
+        edge_vert = wood_con.mesh.verts.new(wood_con.middle_vert.co + distance * dir_edge)
+        new_vertices.append(edge_vert)
 
-        if not closed_pairs:
-            dir_edge = vector_helper.get_dir_edge(pairs[-1][1], starting_vert=vert)
-            edge_vert = bm.verts.new(vert.co + distance * dir_edge)
-            new_vertices.append(edge_vert)
-
-        wc = WoodConnector(bm, new_middle, new_vertices)
-        wc.set_pairs(pairs)
-        wc.set_closed_pair(closed_pairs)
-        bmesh_dict[vert] = wc
-
-    return bmesh_dict
+    wood_con.set_top_rim_verts(new_vertices)
 
 
-def create_thickness(hat_dict, col_mesh):
+def create_thickness(wood_con, thickness=10):
     """
     This method creates the mesh
     :param hat_dict:
@@ -141,118 +129,126 @@ def create_thickness(hat_dict, col_mesh):
     :return:
     """
     print("Creating thickness")
-    for dict_vert, wood_con in hat_dict.items():
-        av_normal = -1 * col_mesh.vertex_normal[dict_vert]
 
-        d = -1 * (av_normal * dict_vert.co)
-        plane = (av_normal[0], av_normal[1], av_normal[2], d)
+    av_normal = -1 * wood_con.av_normal
 
-        # Find the point that is furthest from the middle point according to the normal vector
-        max_dist = 0
-        max_vert = wood_con.top_rim_verts[0]
-        for rim_vert in wood_con.top_rim_verts:
-            dist = lin_alg_helper.dist_point_plane(plane, rim_vert.co)
-            if dist > max_dist:
-                max_dist = dist
-                max_vert = rim_vert
+    d = -1 * (av_normal * wood_con.middle_vert.co)
+    plane = (av_normal[0], av_normal[1], av_normal[2], d)
 
-        # Create new vertices that are the rim vertices extended along the normal vector
-        dist = 0.05
-        dn = -1 * (av_normal * max_vert.co) - dist * av_normal * av_normal
-        f_plane = (av_normal[0], av_normal[1], av_normal[2], dn)
-        new_vertices = []
-        for rim_vert in wood_con.top_rim_verts:
-            dist = lin_alg_helper.dist_point_plane(f_plane, rim_vert.co)
-            v = wood_con.mesh.verts.new((rim_vert.co + dist * av_normal))
-            new_vertices.append(v)
-        wood_con.set_bottom_rim_verts(new_vertices)
+    # Find the point that is furthest from the middle point according to the normal vector
+    max_dist = 0
+    max_vert = wood_con.top_rim_verts[0]
+    for rim_vert in wood_con.top_rim_verts:
+        dist = lin_alg_helper.dist_point_plane(plane, rim_vert.co)
+        if dist > max_dist:
+            max_dist = dist
+            max_vert = rim_vert
 
-        # if the pairs are not closed the middle vertex has to also be extended
-        dist = lin_alg_helper.dist_point_plane(f_plane, wood_con.middle_vert.co)
-        middle_extended = wood_con.mesh.verts.new((wood_con.middle_vert.co + dist * av_normal))
-        wood_con.set_extended_middle(middle_extended)
+    # Create new vertices that are the rim vertices extended along the normal vector
+    dn = -1 * (av_normal * max_vert.co) - thickness * av_normal * av_normal
+    f_plane = (av_normal[0], av_normal[1], av_normal[2], dn)
+    new_vertices = []
+    for rim_vert in wood_con.top_rim_verts:
+        dist = lin_alg_helper.dist_point_plane(f_plane, rim_vert.co)
+        v = wood_con.mesh.verts.new((rim_vert.co + dist * av_normal))
+        new_vertices.append(v)
+    wood_con.set_bottom_rim_verts(new_vertices)
 
-        if wood_con.is_closed:
-            wood_con.mesh.edges.new((middle_extended, wood_con.middle_vert))
+    # if the pairs are not closed the middle vertex has to also be extended
+    dist = lin_alg_helper.dist_point_plane(f_plane, wood_con.middle_vert.co)
+    middle_extended = wood_con.mesh.verts.new((wood_con.middle_vert.co + dist * av_normal))
+    wood_con.set_extended_middle(middle_extended)
 
-        for i in range(len(new_vertices) - 1):
-            v1_b = new_vertices[i]
-            v2_b = new_vertices[i + 1]
+    if wood_con.is_closed:
+        wood_con.mesh.edges.new((middle_extended, wood_con.middle_vert))
 
-            v1_t = wood_con.top_rim_verts[i]
-            v2_t = wood_con.top_rim_verts[i + 1]
+    for i in range(len(new_vertices) - 1):
+        v1_b = new_vertices[i]
+        v2_b = new_vertices[i + 1]
 
-            wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
+        v1_t = wood_con.top_rim_verts[i]
+        v2_t = wood_con.top_rim_verts[i + 1]
 
-        vs_b = new_vertices[0]
-        ve_b = new_vertices[-1]
+        wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
 
-        vs_t = wood_con.top_rim_verts[0]
-        ve_t = wood_con.top_rim_verts[-1]
-        if wood_con.is_closed:
-            wood_con.mesh.faces.new((vs_t, vs_b, ve_b, ve_t))
-        else:
-            wood_con.mesh.faces.new((vs_t, vs_b, middle_extended, wood_con.middle_vert))
-            wood_con.mesh.faces.new((wood_con.middle_vert, middle_extended, ve_b, ve_t))
+    vs_b = new_vertices[0]
+    ve_b = new_vertices[-1]
 
-        wood_con.set_bottom_plane(f_plane)
+    vs_t = wood_con.top_rim_verts[0]
+    ve_t = wood_con.top_rim_verts[-1]
+    if wood_con.is_closed:
+        wood_con.mesh.faces.new((vs_t, vs_b, ve_b, ve_t))
+    else:
+        wood_con.mesh.faces.new((vs_t, vs_b, middle_extended, wood_con.middle_vert))
+        wood_con.mesh.faces.new((wood_con.middle_vert, middle_extended, ve_b, ve_t))
+
+    wood_con.set_bottom_plane(f_plane)
 
     print("end with thickness")
 
 
-def add_holes(wood_con_dict):
-    for dict_vert, wood_con in wood_con_dict.items():
-        top_pair_vertices = []
-        bottom_pair_vertices = []
-        for pair_verts in wood_con.get_top_verts_pairs():
-            # z_new = -1 * col_mesh.vertex_normal[dict_vert]
-            y_new = (pair_verts[2].co - pair_verts[0].co).normalized()
-            x_new = (wood_con.middle_vert.co - pair_verts[1].co).normalized()
-            z_new = x_new.cross(y_new).normalized()
+def add_holes(wood_con, hole_radius=1.5, nut_radius=3, bolt_dist=4, location=5, bolt_thickness=2.5):
 
-            # create the matrices to allow the verts to lay in the plane
-            rot_matrix = mathutils.Matrix((x_new, y_new, z_new)).transposed()
-            co_middle = (pair_verts[1].co + wood_con.middle_vert.co) / 2
+    top_pair_vertices = []
+    bottom_pair_vertices = []
+    for pair_verts in wood_con.get_top_verts_pairs():
+        # z_new = -1 * col_mesh.vertex_normal[dict_vert]
+        y_new = (pair_verts[2].co - pair_verts[0].co).normalized()
+        x_new = (wood_con.middle_vert.co - pair_verts[1].co).normalized()
+        z_new = x_new.cross(y_new).normalized()
 
-            circle_vertices = 12
-            angle = (2 * math.pi) / circle_vertices
-            radius = 0.08
+        # create the matrices to allow the verts to lay in the plane
+        rot_matrix = mathutils.Matrix((x_new, y_new, z_new)).transposed()
+        co_middle = pair_verts[1].co + x_new * location
+        circle_vertices = 12
+        angle = (2 * math.pi) / circle_vertices
 
-            top_vertices = []
-            bottom_vertices = []
-            b_plane = wood_con.bottom_plane
-            for i in range(circle_vertices):
-                p = mathutils.Vector((math.cos(i * angle), math.sin(i * angle), 0)) * radius
-                vert_top = rot_matrix * p + co_middle
-                top_vertices.append(wood_con.mesh.verts.new(vert_top))
+        top_vertices = []
+        bottom_vertices = []
+        b_plane = wood_con.bottom_plane
 
-                # dist = lin_alg_helper.dist_point_plane(wood_con.bottom_plane, vert_top)
-
-                frac_top = -1*(b_plane[0]*vert_top[0] + b_plane[1]*vert_top[1] + b_plane[2]*vert_top[2] + b_plane[3])
-                frac_bottom = b_plane[0]*z_new[0] + b_plane[1]*z_new[1] + b_plane[2]*z_new[2]
-                dist = frac_top / frac_bottom
-
-                vert_bottom = vert_top + dist*z_new
-                bottom_vertices.append(wood_con.mesh.verts.new(vert_bottom))
-
-            for i in range(circle_vertices):
-                v1_t = top_vertices[i]
-                v1_b = bottom_vertices[i]
-                v2_t = top_vertices[(i + 1) % circle_vertices]
-                v2_b = bottom_vertices[(i + 1) % circle_vertices]
-                wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
-
-            top_pair_vertices.append(top_vertices)
-            bottom_pair_vertices.append(bottom_vertices)
-
-        wood_con.set_hole_verts(top_pair_vertices, bottom_pair_vertices)
+        # Calculate bolt distance
+        # p = mathutils.Vector((-nut_radius, 0, 0))
+        # meas_vert = rot_matrix * p + co_middle
 
 
-def file_hole_faces(wood_con_dict):
-    for dict_vert, w_con in wood_con_dict.items():
-        for i in range(len(w_con.pairs)):
-            fill_single_hole(w_con.get_top_verts_pairs()[i], w_con.top_hole_verts[i], w_con.middle_vert, w_con.mesh)
-            fill_single_hole(w_con.get_bottom_verts_pairs()[i], w_con.bottom_hole_verts[i], w_con.extended_middle, w_con.mesh)
+        min_dist = None
+        for i in range(circle_vertices):
+            p = mathutils.Vector((math.cos(i * angle), math.sin(i * angle), 0)) * hole_radius
+            vert_top = rot_matrix * p + co_middle
+            top_vertices.append(wood_con.mesh.verts.new(vert_top))
+
+            dist = lin_alg_helper.point_to_plane_via_dir(vert_top, z_new, b_plane)
+
+            if min_dist is None:
+                min_dist = dist
+            else:
+                if dist < min_dist:
+                    min_dist = dist
+
+        for i in range(6):
+            p = mathutils.Vector((math.cos(i * angle), math.sin(i * angle), 0)) * hole_radius
+
+            vert_bottom = vert_top + dist*z_new
+            bottom_vertices.append(wood_con.mesh.verts.new(vert_bottom))
+
+        for i in range(circle_vertices):
+            v1_t = top_vertices[i]
+            v1_b = bottom_vertices[i]
+            v2_t = top_vertices[(i + 1) % circle_vertices]
+            v2_b = bottom_vertices[(i + 1) % circle_vertices]
+            wood_con.mesh.faces.new((v1_t, v1_b, v2_b, v2_t))
+
+        top_pair_vertices.append(top_vertices)
+        bottom_pair_vertices.append(bottom_vertices)
+
+    wood_con.set_hole_verts(top_pair_vertices, bottom_pair_vertices)
+
+
+def fill_hole_faces(w_con):
+    for i in range(len(w_con.pairs)):
+        fill_single_hole(w_con.get_top_verts_pairs()[i], w_con.top_hole_verts[i], w_con.middle_vert, w_con.mesh)
+        fill_single_hole(w_con.get_bottom_verts_pairs()[i], w_con.bottom_hole_verts[i], w_con.extended_middle, w_con.mesh)
 
 
 def fill_single_hole(pair_verts, hole_verts, middle_vert, mesh):
