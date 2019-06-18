@@ -159,7 +159,7 @@ def create_thickness(wood_con, thickness=10):
     middle_extended = wood_con.mesh.verts.new((wood_con.middle_vert.co + dist * av_normal))
     wood_con.set_extended_middle(middle_extended)
 
-    if wood_con.is_closed:
+    if not wood_con.is_closed:
         wood_con.mesh.edges.new((middle_extended, wood_con.middle_vert))
 
     for i in range(len(new_vertices) - 1):
@@ -193,6 +193,7 @@ def add_holes(wood_con, hole_radius=1.5, nut_radius=3, bolt_dist=4, location=5, 
     bottom_pair_bolt_vertices = []
     top_pair_nut_vertices = []
     bottom_pair_nut_vertices = []
+
     for pair_verts in wood_con.get_top_verts_pairs():
         # z_new = -1 * col_mesh.vertex_normal[dict_vert]
         y_new = (pair_verts[2].co - pair_verts[0].co).normalized()
@@ -216,9 +217,9 @@ def add_holes(wood_con, hole_radius=1.5, nut_radius=3, bolt_dist=4, location=5, 
         meas_vert = rot_matrix * p + co_middle
         circle_dist = lin_alg_helper.point_to_plane_via_dir(meas_vert, z_new, b_plane)
         if circle_dist < 0:
-            circle_dist += bolt_thickness + 1
+            circle_dist += bolt_thickness
         else:
-            circle_dist -= bolt_thickness + 1
+            circle_dist -= bolt_thickness
         print("circle: " + str(circle_dist))
 
         # create pipe for bolt

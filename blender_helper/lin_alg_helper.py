@@ -16,12 +16,14 @@ def dist_point_plane(plane, point):
     :param point: (x, y, z)
     :return: distance from point to plane
     """
-    # |a*x + b*y + c*z + d|
-    top = abs(plane[0]*point[0] + plane[1]*point[1] + plane[2]*point[2] + plane[3])
-    # sqrt(a^2 + b^2 + c^2)
-    bottom = math.sqrt(math.pow(plane[0], 2) + math.pow(plane[1], 2) + math.pow(plane[2], 2))
+    # # |a*x + b*y + c*z + d|
+    # top = abs(plane[0]*point[0] + plane[1]*point[1] + plane[2]*point[2] + plane[3])
+    # # sqrt(a^2 + b^2 + c^2)
+    # bottom = math.sqrt(math.pow(plane[0], 2) + math.pow(plane[1], 2) + math.pow(plane[2], 2))
 
-    return top/bottom
+    a, b, c, d = plane
+
+    return point_to_plane_via_dir(point, (a, b, c), plane)
 
 
 def point_to_plane_via_dir(point, dir, plane):

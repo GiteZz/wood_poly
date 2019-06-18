@@ -45,7 +45,7 @@ if __name__ == "__main__":
         wood_con = blender_helper.collection_helper.WoodConnector(bm, new_middle, av_normal, pair_dict[vert])
 
         function_collection.create_hat(wood_con)
-        function_collection.create_thickness(wood_con)
+        function_collection.create_thickness(wood_con, thickness=7)
         function_collection.add_holes(wood_con)
         function_collection.fill_hole_faces(wood_con)
 
