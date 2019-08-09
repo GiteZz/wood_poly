@@ -139,10 +139,11 @@ def create_thickness(wood_con, thickness=10):
     max_dist = 0
     max_vert = wood_con.top_rim_verts[0]
     for rim_vert in wood_con.top_rim_verts:
-        dist = lin_alg_helper.dist_point_plane(plane, rim_vert.co)
+        dist = abs(lin_alg_helper.dist_point_plane(plane, rim_vert.co))
         if dist > max_dist:
             max_dist = dist
             max_vert = rim_vert
+    print("max distance: " + str(max_dist))
 
     # Create new vertices that are the rim vertices extended along the normal vector
     dn = -1 * (av_normal * max_vert.co) - thickness * av_normal * av_normal
@@ -220,7 +221,6 @@ def add_holes(wood_con, hole_radius=1.5, nut_radius=3, bolt_dist=4, location=5, 
             circle_dist += bolt_thickness
         else:
             circle_dist -= bolt_thickness
-        print("circle: " + str(circle_dist))
 
         # create pipe for bolt
         for i in range(circle_vertices):
@@ -286,19 +286,21 @@ def fill_hole_faces(w_con):
 
 
 def fill_single_hole(pair_verts, hole_verts, middle_vert, mesh):
-    # print(pair_verts)
-    # print(hole_verts)
-    # print(middle_vert)
-    # print(mesh)
     circle_amount_half = len(hole_verts) // 2
-    print("=========================================")
-    pretty_print(pair_verts)
-    pretty_print(hole_verts)
     first_half = hole_verts[0:circle_amount_half + 1]
     second_half = hole_verts[circle_amount_half:] + [hole_verts[0]]
     first_half.extend([pair_verts[1], pair_verts[2], middle_vert])
     second_half.extend([middle_vert, pair_verts[0], pair_verts[1]])
-    print(first_half)
-    print(second_half)
     mesh.faces.new(first_half)
     mesh.faces.new(second_half)
+
+def to_middle_point(wood_con):
+    new_z = wood_con.av_normal
+    new_x = (wood_con.bottom_rim_verts[0].co - wood_con.extended_middle.co).normalized()
+    new_y = new_z.cross(new_x)
+    translation = -wood_con.extended_middle.co
+    trans_matrix = mathutils.Matrix.Translation(translation)
+    rot_matrix = mathutils.Matrix((new_x, new_y, new_z))
+
+    for vert in wood_con.mesh.verts:
+        vert.co = rot_matrix * (trans_matrix * vert.co)
